@@ -1,0 +1,15 @@
+{
+  "FULL_RUN": true,
+  "random_seed": 42,
+  "ols_bootstrap_iterations": 1000,
+  "matching_iterations": 100,
+  "gps_bootstrap_iterations": 100,
+  "input_files": {
+    "M": "c:\\python\\powerlift_causal_analysis\\data\\cleaned_sss_M.csv",
+    "F": "c:\\python\\powerlift_causal_analysis\\data\\cleaned_sss_F.csv"
+  },
+  "analysis_counts": {
+    "M": 3960,
+    "F": 2024
+  }
+}
