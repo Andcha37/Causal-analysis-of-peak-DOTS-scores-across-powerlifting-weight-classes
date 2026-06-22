@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 430" width="1000" height="430" role="img" aria-label="Causal DAG">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto" markerUnits="strokeWidth">
+      <path d="M0,0 L0,6 L9,3 z" fill="#7890AA"/>
+    </marker>
+    <filter id="shadow"><feDropShadow dx="0" dy="5" stdDeviation="7" flood-opacity=".13"/></filter>
+  </defs>
+  <rect width="1000" height="430" rx="22" fill="#F7FAFD"/>
+  <text x="42" y="42" font-family="Segoe UI,Arial,sans-serif" font-size="15" fill="#55708D" font-weight="700" letter-spacing="2">IDENTIFICATION DAG</text>
+  <g stroke="#7890AA" stroke-width="2.5" fill="none" marker-end="url(#arrow)">
+    <path d="M250 120 C380 110,410 140,500 187"/><path d="M250 220 C360 220,420 210,500 210"/>
+    <path d="M250 320 C380 315,420 260,500 228"/><path d="M640 210 C720 210,755 210,810 210"/>
+    <path d="M250 120 C470 45,720 70,810 178"/><path d="M250 220 C500 135,700 140,810 190"/>
+    <path d="M250 320 C520 360,720 315,810 238"/><path d="M566 250 C565 285,565 302,565 326"/>
+    <path d="M642 350 C745 345,790 285,835 247"/>
+  </g>
+  <g filter="url(#shadow)" font-family="Segoe UI,Arial,sans-serif">
+    <g><rect x="55" y="80" width="195" height="72" rx="16" fill="#E0F2FE" stroke="#7DD3FC"/>
+      <text x="152" y="109" text-anchor="middle" font-size="15" font-weight="700" fill="#075985">Athlete background</text>
+      <text x="152" y="132" text-anchor="middle" font-size="12" fill="#39708C">age · career start · year</text></g>
+    <g><rect x="55" y="184" width="195" height="72" rx="16" fill="#F3E8FF" stroke="#D8B4FE"/>
+      <text x="152" y="213" text-anchor="middle" font-size="15" font-weight="700" fill="#6B21A8">Career history</text>
+      <text x="152" y="236" text-anchor="middle" font-size="12" fill="#8053A3">appearances · class changes</text></g>
+    <g><rect x="55" y="288" width="195" height="72" rx="16" fill="#ECFCCB" stroke="#BEF264"/>
+      <text x="152" y="317" text-anchor="middle" font-size="15" font-weight="700" fill="#3F6212">Context</text>
+      <text x="152" y="340" text-anchor="middle" font-size="12" fill="#5D7738">federation · continent</text></g>
+    <g><rect x="500" y="174" width="142" height="78" rx="20" fill="#DBEAFE" stroke="#60A5FA" stroke-width="2"/>
+      <text x="571" y="206" text-anchor="middle" font-size="17" font-weight="800" fill="#1D4ED8">Body weight</text>
+      <text x="571" y="231" text-anchor="middle" font-size="12" fill="#3B65A3">Treatment</text></g>
+    <g><rect x="802" y="174" width="155" height="78" rx="20" fill="#FFE4E6" stroke="#FDA4AF" stroke-width="2"/>
+      <text x="879" y="206" text-anchor="middle" font-size="17" font-weight="800" fill="#BE123C">Peak Dots</text>
+      <text x="879" y="231" text-anchor="middle" font-size="12" fill="#A6415C">Outcome</text></g>
+    <g><rect x="500" y="326" width="142" height="62" rx="16" fill="#FEF3C7" stroke="#FCD34D"/>
+      <text x="571" y="353" text-anchor="middle" font-size="14" font-weight="750" fill="#92400E">Initial speed</text>
+      <text x="571" y="374" text-anchor="middle" font-size="11" fill="#A46624">Mediator candidate</text></g>
+  </g>
+  <text x="42" y="409" font-family="Segoe UI,Arial,sans-serif" font-size="12" fill="#7890AA">Arrows encode the assumed adjustment structure—not proof of causality.</text>
+</svg>
