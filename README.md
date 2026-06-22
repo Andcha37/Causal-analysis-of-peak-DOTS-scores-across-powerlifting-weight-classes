@@ -255,3 +255,263 @@ REBUILD_ATHLETE_FEATURES = False
 원본 CSV는 약 750MB이며 전처리·분석 산출물도 큽니다. 원격 저장소에 올릴 때는 데이터 라이선스와 저장 용량 제한을 먼저 확인하고, 필요하면 `data/`, `.venv/`, 대용량 `outputs/`를 Git 추적 대상에서 제외하십시오.
 
 OpenPowerlifting 데이터 사용 조건과 최신 데이터 정보는 [OpenPowerlifting](https://www.openpowerlifting.org/)에서 확인할 수 있습니다.
+
+---
+
+# Powerlifting Causal Analysis (English)
+
+This project analyzes how body weight affects an athlete's lifetime peak Dots score by sex using OpenPowerlifting competition records. It provides a reproducible workflow covering raw-data preprocessing, EMA-based athlete-level feature extraction, multiple regression, mediation analysis, PSM/CEM, and GPS-DR analysis.
+
+## Research Questions
+
+- How does an athlete's peak Dots score change as body weight increases?
+- Is this relationship the same for men and women?
+- Does initial progress rate mediate the relationship between body weight and peak Dots score?
+- Do the regression results remain consistent under matching and continuous-treatment causal inference methods?
+
+## Current Execution Status
+
+- Analysis date: 2026-06-23
+- Notebook: `main_code/powerlift_causal_analysis.ipynb`
+- Executed code cells: 26
+- Execution errors: None
+- Execution mode: `FULL_RUN = True`
+- Random seed: 42
+- OLS and mediation bootstrap: 1,000 iterations
+- PSM/CEM threshold sensitivity: 100 iterations each
+- GPS-DR bootstrap: 100 iterations each
+- Final analysis sample: 3,960 men and 2,024 women
+
+The execution settings are recorded in `outputs/run_metadata.json`.
+
+## Project Structure
+
+```text
+powerlift_causal_analysis/
+├─ data/
+│  ├─ openpowerlifting-2025-11-22-823f23d6.csv  # Raw data
+│  ├─ cleaned_sss.csv                            # Combined preprocessed data
+│  ├─ cleaned_sss_M.csv                          # Male analysis input
+│  └─ cleaned_sss_F.csv                          # Female analysis input
+├─ preprocess_code/
+│  └─ preprocess.py                              # Raw data → analysis inputs
+├─ main_code/
+│  └─ powerlift_causal_analysis.ipynb             # Main analysis notebook
+├─ outputs/
+│  ├─ derived/                                   # Athlete-level EMA-derived data
+│  ├─ figures/                                   # Analysis figures
+│  ├─ tables/                                    # Detailed iteration-level CSV files
+│  ├─ powerlifting_causal_analysis_results.xlsx  # Consolidated results workbook
+│  └─ run_metadata.json                          # Execution settings and sample sizes
+├─ pyproject.toml
+├─ uv.lock
+└─ README.md
+```
+
+`main.py` is the initial project template and is not the actual analysis entry point. The analysis is performed in the Jupyter notebook.
+
+## Environment Setup
+
+Python 3.12 or later and [uv](https://docs.astral.sh/uv/) are recommended.
+
+```powershell
+cd C:\python\powerlift_causal_analysis
+uv sync
+```
+
+The main packages are:
+
+- pandas, NumPy, SciPy
+- statsmodels
+- scikit-learn
+- Matplotlib, Seaborn
+- tqdm, openpyxl
+
+See `pyproject.toml` for the declared version ranges and `uv.lock` for the locked versions.
+
+## 1. Data Preprocessing
+
+The raw OpenPowerlifting public dataset contains approximately 3.7 million records and 42 variables.
+
+Run the following command from the project root:
+
+```powershell
+uv run python preprocess_code\preprocess.py `
+  --input data\openpowerlifting-2025-11-22-823f23d6.csv `
+  --output-dir data `
+  --overwrite
+```
+
+The initial stages of the large raw dataset are processed in chunks of 100,000 rows by default. Add `--keep-intermediate` to retain intermediate CSV files.
+
+### Preprocessing Criteria
+
+1. Keep only records with `Equipment == Raw`.
+2. Exclude an athlete entirely if any of their Raw records has `Tested != Yes` or a missing `Tested` value.
+3. Keep only records with `Sanctioned == Yes`.
+4. Keep rows where squat, bench press, and deadlift results are all present and greater than zero.
+5. Keep only athletes with at least six records.
+6. Impute missing age values using dates and exclude athletes who have no adult records.
+7. Create `IPFCategory`, `Continent`, and `Days_Since_Start`.
+8. Merge records for the same athlete on the same date: average numeric values and keep the first text value.
+9. Exclude records with missing body weight or a `Place` value of `DD` or `DQ`.
+10. Recheck the six-record requirement and split the data into male and female files.
+
+### Preprocessing Outputs
+
+| File | Rows | Purpose |
+|---|---:|---|
+| `data/cleaned_sss.csv` | 181,075 | Combined preprocessed data |
+| `data/cleaned_sss_M.csv` | 114,442 | Male main-analysis input |
+| `data/cleaned_sss_F.csv` | 66,631 | Female main-analysis input |
+
+Missing values are removed for the variables required by the analysis. Optional variables such as `Maturation_Slope` may intentionally remain missing when the relevant phase cannot be defined, but they are not used in the final models. Each regression, matching, and GPS stage again removes missing values for the variables used in that specific stage.
+
+## 2. Running the Main Analysis
+
+Open the following file in VS Code or a Jupyter environment, select the project's `.venv` Python kernel, and run the notebook from top to bottom.
+
+```text
+main_code/powerlift_causal_analysis.ipynb
+```
+
+Main notebook settings:
+
+```python
+FULL_RUN = True
+RANDOM_SEED = 42
+REBUILD_ATHLETE_FEATURES = False
+```
+
+- `FULL_RUN=True`: Runs the complete analysis using report-level iteration counts.
+- `FULL_RUN=False`: Reduces iteration counts for a quick structural check.
+- `REBUILD_ATHLETE_FEATURES=False`: Reuses the athlete-level cache in `outputs/derived`.
+- If the input CSV files or EMA conditions change, run with `REBUILD_ATHLETE_FEATURES=True`.
+
+## Analysis Methods
+
+### Athlete-Level Lifecycle Features
+
+- Apply sex-specific weight-class intervals.
+- Require adult records and at least six appearances within a weight class.
+- If an athlete qualifies in multiple classes, select the first class they entered.
+- Linearly interpolate each athlete's records at 30-day intervals.
+- Apply an EMA whose span is 20% of the athlete's full career interval.
+- Exclude athletes whose peak occurs at the final time point because they are treated as still improving.
+- Calculate `Initial_Speed` over the first continuous positive-slope segment where the slope is at least 70% of that segment's maximum.
+- Exclude athletes with careers shorter than 180 days.
+
+This process produces `outputs/derived/athlete_level_M.csv` and `athlete_level_F.csv`.
+
+### Statistical and Causal Analyses
+
+- Descriptive statistics, distributions, correlations, and body-weight–Peak-Dots scatterplots
+- Multiple regression and VIF
+- Residual-versus-fitted and Q-Q plot diagnostics
+- 1,000 bootstrap iterations for OLS coefficients
+- 1,000 bootstrap iterations for the indirect effect of initial progress rate
+- PSM: logistic propensity score with 1:1 nearest-neighbor matching without replacement
+- CEM: covariates coarsened into four bins followed by stratum fixed effects
+- 100-iteration sensitivity analysis with randomized thresholds between the first and third body-weight quartiles
+- GPS-DR: random-forest treatment model, KDE-based GPS, and stabilized weights trimmed at the 1st and 99th percentiles
+- Dose-response curve using a restricted cubic spline and 100 bootstrap iterations
+
+## Current Analysis Results
+
+### Analysis Sample
+
+| Sex | Athletes | Mean Body Weight | Mean Peak Dots | Mean Time to Peak |
+|---|---:|---:|---:|---:|
+| Men | 3,960 | 91.74 kg | 402.35 | 3.69 years |
+| Women | 2,024 | 68.01 kg | 376.73 | 3.52 years |
+
+### Key Multiple-Regression Coefficients
+
+`E1` is the Peak Dots model without initial progress rate, while `E2` includes initial progress rate.
+
+| Sex | Model | Variable | Coefficient | p-value | Bootstrap 95% CI |
+|---|---|---|---:|---:|---:|
+| Men | E1 | Mean body weight | +0.1764 | <0.001 | [0.0958, 0.2527] |
+| Men | E2 | Mean body weight | +0.1778 | <0.001 | [0.1048, 0.2560] |
+| Men | E2 | Initial progress rate | +0.0292 | 0.426 | [-0.0374, 0.1039] |
+| Women | E1 | Mean body weight | -0.5343 | <0.001 | [-0.6901, -0.3775] |
+| Women | E2 | Mean body weight | -0.5272 | <0.001 | [-0.6754, -0.3722] |
+| Women | E2 | Initial progress rate | +0.1332 | 0.0069 | [0.0327, 0.2352] |
+
+After controlling for the covariates, a 1 kg increase in mean body weight was positively associated with Peak Dots for men and negatively associated with Peak Dots for women.
+
+### Mediation Effect
+
+| Sex | Mean Indirect Effect | 95% CI | Significance |
+|---|---:|---:|---|
+| Men | -0.0011 | [-0.0049, 0.0021] | Not significant |
+| Women | -0.0069 | [-0.0189, 0.0015] | Not significant |
+
+The indirect-effect confidence interval contains zero for both sexes, so the mediation effect of initial progress rate was not supported.
+
+### PSM/CEM Threshold Sensitivity
+
+| Sex | Method | Mean Effect | 95% CI | Valid Iterations |
+|---|---|---:|---:|---:|
+| Men | PSM | +5.377 | [2.297, 9.391] | 100 |
+| Men | CEM | +1.782 | [-1.470, 5.389] | 100 |
+| Women | PSM | -13.156 | [-21.970, -7.549] | 100 |
+| Women | CEM | -18.034 | [-25.760, -14.211] | 100 |
+
+In this run, male PSM showed a significant positive effect, but the male CEM confidence interval contained zero. Both methods showed negative effects for women. The male result should therefore be interpreted as more sensitive to the choice of method.
+
+### GPS-DR Diagnostics
+
+| Sex | Analysis N | Effective Sample Size (ESS) | Maximum Stabilized Weight | Valid Bootstrap Iterations |
+|---|---:|---:|---:|---:|
+| Men | 3,960 | 3,434.62 | 2.50 | 100 |
+| Women | 2,024 | 1,578.06 | 3.46 | 100 |
+
+The dose-response curves and covariate balance before and after GPS weighting are available in `gps_dr_dose_response.png` and `gps_balance_love_plots.png`, respectively.
+
+## Output Files
+
+### Consolidated Results
+
+`outputs/powerlifting_causal_analysis_results.xlsx` includes the following sheets:
+
+- Input-data overview and quality checks
+- Athlete-level descriptive statistics and correlations
+- Male and female A, E1, and E2 regression coefficients and VIF
+- Mediation effects and PSM/CEM summaries
+- GPS diagnostics, covariate balance, and dose-response curves
+
+### Detailed Tables
+
+- `outputs/tables/M_PSM_threshold_iterations.csv`
+- `outputs/tables/M_CEM_threshold_iterations.csv`
+- `outputs/tables/F_PSM_threshold_iterations.csv`
+- `outputs/tables/F_CEM_threshold_iterations.csv`
+- `outputs/tables/M_GPS_DRF.csv`
+- `outputs/tables/F_GPS_DRF.csv`
+
+### Figures
+
+- `bodyweight_peakdots_scatter.png`: Body weight and Peak Dots scatterplots
+- `correlation_heatmaps.png`: Correlations among key variables
+- `ols_residual_diagnostics.png`: Regression residual diagnostics
+- `matching_threshold_sensitivity.png`: PSM/CEM threshold sensitivity
+- `psm_cem_love_plots.png`: Covariate balance before and after matching
+- `gps_dr_dose_response.png`: GPS-DR dose-response curves
+- `gps_balance_love_plots.png`: Covariate balance before and after GPS weighting
+- `weightclass_summary.png`: Initial progress rate and Peak Dots by weight class
+- `ema_trajectory_examples.png`: Examples of athlete-level EMA trajectories
+
+## Interpretation Notes
+
+- These results are based on observational data and are not equivalent to causal effects from a randomized experiment.
+- Unmeasured confounding remains, including training methods, nutrition, height, skeletal muscle mass, and body-fat percentage.
+- Body weight changes over time, but the analysis uses an athlete's mean body weight within the selected weight class as the treatment.
+- PSM/CEM dichotomizes continuous body weight using thresholds and therefore loses information. GPS-DR is included to address this limitation.
+- When methods disagree, the result should be evaluated using covariate balance, effective sample size, confidence intervals, and sensitivity results rather than selecting a single preferred method.
+
+## Data and Repository Management
+
+The raw CSV is approximately 750 MB, and the preprocessed data and analysis outputs are also large. Before uploading them to a remote repository, check the data license and repository storage limits. If necessary, exclude `data/`, `.venv/`, and large files under `outputs/` from Git tracking.
+
+See [OpenPowerlifting](https://www.openpowerlifting.org/) for the data usage terms and the latest dataset information.
