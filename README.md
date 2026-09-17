@@ -2,6 +2,8 @@
 
 OpenPowerlifting 경기 기록을 이용해 체중이 선수의 생애 최고 Dots 점수에 미치는 영향을 성별로 분석한 프로젝트입니다. 원본 데이터 전처리부터 EMA 기반 선수별 지표 생성, 다중회귀, 매개효과, PSM/CEM, GPS-DR 분석까지 하나의 재현 가능한 흐름으로 구성되어 있습니다.
 
+streamlit dashboard : https://causalpowerlifting.streamlit.app/ 
+
 ## 연구 질문
 
 - 체중이 증가할수록 선수의 최고 Dots 점수는 어떻게 변하는가?
